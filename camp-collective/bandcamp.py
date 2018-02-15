@@ -118,7 +118,7 @@ class Bandcamp:
         converted = False
 
         self.download_status[item.id]['status'] = 'converting'
-        while converted:
+        while not converted:
             rand = random()
             now = datetime.datetime.now()
 
@@ -126,18 +126,16 @@ class Bandcamp:
                 round(now.time().microsecond / 1000)
 
             rand_stat_url = stat_url + '&.rand=' + str(rand) + '&.vrs=1'
-            resp = await self.session.get(rand_stat_url)
+            resp = await self.session.get(rand_stat_url, headers={
+                "Accept": "application/json, text/javascript, */*; q=0.01"
+            })
 
             if resp.status_code != 200:
                 print("Failed to get status via %s" % rand_stat_url)
                 continue
 
             data = resp.json()
-
             converted = data['result'] == 'ok'
-            if data['result'] != 'ok':
-                print(
-                    'An unkown value came out the statdownload call please, report this. \n%s' % json.dumps(data))
 
         resp = await self.session.get(final_download_url, stream=True)
         if resp.status_code != 200:
