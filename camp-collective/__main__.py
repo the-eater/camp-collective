@@ -11,13 +11,14 @@ DOC = """
 Camp Collective.
 
 Usage:
-    camp-collective -c=<cookie>... download-collection [--parallel=<amount>] [--status=<status-file>] [<target-directory>]
+    camp-collective -c=<cookie>... [options] download-collection [<target-directory>]
 
 Options:
     --cookie=<cookie> -c       Cookies used to authenticate with Bandcamp (split by ; and content url encoded)
     --parallel=<amount> -p     Amount of items that should be downloaded parallel [default: 5]
     --status=<status-file> -s  Status file to save the status in of downloaded releases, so we don't over do it
-"""
+    --format=<file-format> -f  File format to download (%s) [default: flac]
+""" % ', '.join(Bandcamp.FORMATS)
 data = docopt(DOC)
 
 
@@ -36,21 +37,26 @@ async def _main(data):
                         for cookie_comb in cookie_string.split(';')])
     bc = Bandcamp(cookies=cookie_dict)
 
+
+
+
+    if data['download-collection']:
+        if data['<target-directory>']:
+            bc.download_directory = data['<target-directory>']
+
+        await download_collection(bc, parallel=int(data['--parallel']), status_file=data['--status'], file_format=data['--format'])
+
+
+async def do_login(bc):
     await bc.load_user_data()
 
     if not bc.is_logged_in():
         print(Fore.RED + "No user logged in with given cookies" + Fore.RESET)
         exit(1)
 
+
     print(Fore.GREEN + 'Logged in as ' + Fore.BLUE + bc.user['name'] + Fore.GREEN + ' (' + Fore.CYAN + bc.user[
         'username'] + Fore.GREEN + ')' + Fore.RESET)
-
-    if data['download-collection']:
-        if data['<target-directory>']:
-            bc.download_directory = data['<target-directory>']
-
-        await download_collection(bc, parallel=int(data['--parallel']), status_file=data['--status'])
-
 
 def on_executor(func):
     async def wrapper(*args, **kwargs):
@@ -71,7 +77,15 @@ def write_contents_to_file(filename, data):
         fp.write(data)
 
 
-async def download_collection(bc, parallel, status_file=None):
+async def download_collection(bc, parallel, status_file=None, file_format=None):
+    file_format = file_format.lower()
+
+    if file_format not in Bandcamp.FORMATS:
+        print(Fore.RED + "Please use one of the following formats: " + Fore.CYAN + (Fore.RED + ', ' + Fore.CYAN).join(Bandcamp.FORMATS) + Fore.RESET)
+        exit(1)
+
+    await do_login(bc)
+
     coll = await bc.load_own_collection(full=True)
     working = 0
     done = 0
@@ -142,7 +156,7 @@ async def download_collection(bc, parallel, status_file=None):
 
     async def download_item(item):
         nonlocal done, failed
-        res = await bc.download_item(item)
+        res = await bc.download_item(item, file_format)
         done += 1
 
         if res is None:

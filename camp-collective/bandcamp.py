@@ -96,6 +96,9 @@ class Bandcamp:
     async def download_item(self, item, file_format=None):
         file_format = file_format if file_format is not None else self.file_format
 
+        if file_format not in Bandcamp.FORMATS:
+            raise RuntimeError('File format %s is not supported by bandcamp' % file_format)
+
         self.download_status[item.id] = {
             "item": item,
             "status": "requested"
