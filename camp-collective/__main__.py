@@ -90,7 +90,8 @@ async def download_collection(bc, parallel, status_file=None):
         json_status = await read_file_in_memory(status_file)
         status = json.loads(json_status)
 
-    queue = [item for item in coll.items.values() if item.id not in status or not status[item.id]]
+    queue = [item for item in coll.items.values(
+    ) if item.id not in status or not status[item.id]]
 
     async def print_progress():
         nonlocal working, done, failed
@@ -123,7 +124,7 @@ async def download_collection(bc, parallel, status_file=None):
 
                 message += Fore.YELLOW + '] ' + Fore.CYAN + val[
                     'item'].name + Fore.YELLOW + ' by ' + Fore.GREEN + val[
-                               'item'].artist + Fore.RESET + "\n"
+                    'item'].artist + Fore.RESET + "\n"
 
             last_height = message.count("\n")
             print(message, end="")
