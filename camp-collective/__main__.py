@@ -89,6 +89,7 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
     working = 0
     done = 0
     failed = 0
+    failed_items = []
     status = {}
 
     if status_file is not None:
@@ -160,6 +161,7 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
 
         if res is None:
             failed += 1
+            failed_items.append(item)
         else:
             status[item.id] = True
 
@@ -183,6 +185,13 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
         progress_checkers.append(write_status())
 
     await asyncio.gather(*downloaders, *progress_checkers)
+
+    if failed > 0:
+        print(Fore.YELLOW + '\nThe following items failed:')
+        for item in failed_items:
+            print(Fore.CYAN + item.name + Fore.YELLOW + ' by ' + Fore.GREEN + item.artist + Fore.YELLOW + ': ' + Fore.BLUE + item.url + Fore.RESET)
+
+    print(Fore.GREEN + 'Done!' + Fore.RESET)
 
 
 loop = asyncio.get_event_loop()
