@@ -37,14 +37,12 @@ async def _main(data):
                         for cookie_comb in cookie_string.split(';')])
     bc = Bandcamp(cookies=cookie_dict)
 
-
-
-
     if data['download-collection']:
         if data['<target-directory>']:
             bc.download_directory = data['<target-directory>']
 
-        await download_collection(bc, parallel=int(data['--parallel']), status_file=data['--status'], file_format=data['--format'])
+        await download_collection(bc, parallel=int(data['--parallel']), status_file=data['--status'],
+                                  file_format=data['--format'])
 
 
 async def do_login(bc):
@@ -54,9 +52,9 @@ async def do_login(bc):
         print(Fore.RED + "No user logged in with given cookies" + Fore.RESET)
         exit(1)
 
-
     print(Fore.GREEN + 'Logged in as ' + Fore.BLUE + bc.user['name'] + Fore.GREEN + ' (' + Fore.CYAN + bc.user[
         'username'] + Fore.GREEN + ')' + Fore.RESET)
+
 
 def on_executor(func):
     async def wrapper(*args, **kwargs):
@@ -81,7 +79,8 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
     file_format = file_format.lower()
 
     if file_format not in Bandcamp.FORMATS:
-        print(Fore.RED + "Please use one of the following formats: " + Fore.CYAN + (Fore.RED + ', ' + Fore.CYAN).join(Bandcamp.FORMATS) + Fore.RESET)
+        print(Fore.RED + "Please use one of the following formats: " + Fore.CYAN + (Fore.RED + ', ' + Fore.CYAN).join(
+            Bandcamp.FORMATS) + Fore.RESET)
         exit(1)
 
     await do_login(bc)
@@ -138,7 +137,7 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
 
                 message += Fore.YELLOW + '] ' + Fore.CYAN + val[
                     'item'].name + Fore.YELLOW + ' by ' + Fore.GREEN + val[
-                    'item'].artist + Fore.RESET + "\n"
+                               'item'].artist + Fore.RESET + "\n"
 
             last_height = message.count("\n")
             print(message, end="")
