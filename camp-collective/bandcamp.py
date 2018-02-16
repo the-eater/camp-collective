@@ -103,7 +103,7 @@ class Bandcamp:
 
         data = await self.get_page_data(item.download_url)
 
-        if data is None or data['digital_items'][0] is None:
+        if data is None or data['digital_items'][0] is None or 'downloads' not in data['digital_items'][0]:
             self.download_status[item.id]['status'] = 'failed'
             return None
 
