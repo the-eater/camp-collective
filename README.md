@@ -5,7 +5,22 @@ A bandcamp python toolset
 
 Camp collective currently gives you a useless API and a cli tool to download your whole bandcamp collection.
 
-# How to use
+# Usage
+
+```
+Camp Collective.
+
+Usage:
+    camp-collective -c=<cookie>... [options] download-collection [<target-directory>]
+
+Options:
+    --cookie=<cookie> -c       Cookies used to authenticate with Bandcamp (split by ; and content url encoded)
+    --parallel=<amount> -p     Amount of items that should be downloaded parallel [default: 5]
+    --status=<status-file> -s  Status file to save the status in of downloaded releases, so we don't over do it
+    --format=<file-format> -f  File format to download (wav, forbis, flac, mp3-v0, mp3-320, alac, aiff-lossless, aac-hi) [default: flac]
+```
+
+# Quickstart
 
 ```
 pyenv install 3.6.1 # or you equivalent
