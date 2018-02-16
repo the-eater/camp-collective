@@ -145,7 +145,7 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
             await asyncio.sleep(0.5)
 
     async def write_status():
-        while len(queue) > 0 and working > 0:
+        while len(queue) > 0 or working > 0:
             json_data = json.dumps(status)
             await write_contents_to_file(status_file, json_data)
             await asyncio.sleep(5)
