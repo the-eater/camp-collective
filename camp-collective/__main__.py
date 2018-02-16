@@ -1,7 +1,8 @@
 from docopt import docopt
+from os.path import isfile
 
 import asyncio
-
+import json
 from colorama import Fore, ansi
 
 from .bandcamp import Bandcamp
@@ -10,11 +11,12 @@ DOC = """
 Camp Collective.
 
 Usage:
-    camp-collective -c=<cookie>... download-collection [--parallel=<amount>] [<target-directory>]
+    camp-collective -c=<cookie>... download-collection [--parallel=<amount>] [--status=<status-file>] [<target-directory>]
 
 Options:
-    --cookie=<cookie> -c  Cookies used to authenticate with Bandcamp (split by ; and content url encoded)
-    --parallel=<amount>   Amount of items that should be downloaded parallel [default: 5]
+    --cookie=<cookie> -c       Cookies used to authenticate with Bandcamp (split by ; and content url encoded)
+    --parallel=<amount> -p     Amount of items that should be downloaded parallel [default: 5]
+    --status=<status-file> -s  Status file to save the status in of downloaded releases, so we don't over do it
 """
 data = docopt(DOC)
 
@@ -47,33 +49,67 @@ async def _main(data):
         if data['<target-directory>']:
             bc.download_directory = data['<target-directory>']
 
-        await download_collection(bc, parallel=int(data['--parallel']))
+        await download_collection(bc, parallel=int(data['--parallel']), status_file=data['--status'])
 
 
-async def download_collection(bc, parallel):
+def on_executor(func):
+    async def wrapper(*args, **kwargs):
+        return await asyncio.get_event_loop().run_in_executor(None, lambda: func(*args, **kwargs))
+
+    return wrapper
+
+
+@on_executor
+def read_file_in_memory(filename):
+    with open(filename, 'r') as fp:
+        return fp.read()
+
+
+@on_executor
+def write_contents_to_file(filename, data):
+    with open(filename, 'w') as fp:
+        fp.write(data)
+
+
+async def download_collection(bc, parallel, status_file=None):
     coll = await bc.load_own_collection(full=True)
     working = 0
     done = 0
-    queue = list(coll.items.values())
+    failed = 0
+    status = {}
+
+    if status_file is not None:
+        if not isfile(status_file):
+            try:
+                with open(status_file, 'w') as fp:
+                    fp.write('{}')
+            except RuntimeError as e:
+                print("Can't write status file (%s)" % status_file)
+                exit(1)
+
+        json_status = await read_file_in_memory(status_file)
+        status = json.loads(json_status)
+
+    queue = [item for item in coll.items.values() if item.id not in status or not status[item.id]]
 
     async def print_progress():
-        nonlocal working, done
+        nonlocal working, done, failed
         last_height = 0
         step = 0
         # But it looks sexy in the console!
         while len(queue) > 0 or working > 0:
             message = ((ansi.clear_line() + ansi.Cursor.UP(
-                1)) * last_height) + '\r' + Fore.YELLOW + "Queued: " + Fore.GREEN + str(
+                1)) * last_height) + ansi.clear_line() + '\r' + Fore.YELLOW + "Queued: " + Fore.GREEN + str(
                 len(queue)) + Fore.YELLOW + " Working: " + Fore.GREEN + str(
                 working) + Fore.YELLOW + " Done: " + Fore.GREEN + str(
-                done) + Fore.RESET + "\n\n"
+                done) + Fore.YELLOW + " Failed: " + Fore.RED + str(failed) + Fore.RESET + "\n\n"
 
             for val in bc.download_status.values():
-                if val['status'] not in ['downloading', 'converting']:
+                if val['status'] not in ['downloading', 'converting', 'requested']:
                     continue
 
                 message += Fore.YELLOW + '['
-                if val['status'] == 'converting':
+                if val['status'] == 'converting' or val['status'] == 'requested':
                     bar = '.. .. ..'
                     message += Fore.BLUE + bar[step:step + 4]
 
@@ -87,17 +123,31 @@ async def download_collection(bc, parallel):
 
                 message += Fore.YELLOW + '] ' + Fore.CYAN + val[
                     'item'].name + Fore.YELLOW + ' by ' + Fore.GREEN + val[
-                    'item'].artist + Fore.RESET + "\n"
+                               'item'].artist + Fore.RESET + "\n"
 
             last_height = message.count("\n")
             print(message, end="")
             step = (step + 1) % 4
             await asyncio.sleep(0.5)
 
+    async def write_status():
+        while len(queue) > 0 and working > 0:
+            json_data = json.dumps(status)
+            await write_contents_to_file(status_file, json_data)
+            await asyncio.sleep(5)
+
+        json_data = json.dumps(status)
+        await write_contents_to_file(status_file, json_data)
+
     async def download_item(item):
-        nonlocal done
-        await bc.download_item(item)
+        nonlocal done, failed
+        res = await bc.download_item(item)
         done += 1
+
+        if res is None:
+            failed += 1
+        else:
+            status[item.id] = True
 
     async def queue_download():
         nonlocal working
@@ -113,7 +163,12 @@ async def download_collection(bc, parallel):
     for i in range(min(len(queue), parallel)):
         downloaders.append(queue_download())
 
-    await asyncio.gather(*downloaders, print_progress())
+    progress_checkers = [print_progress()]
+
+    if status_file is not None:
+        progress_checkers.append(write_status())
+
+    await asyncio.gather(*downloaders, *progress_checkers)
 
 
 loop = asyncio.get_event_loop()
