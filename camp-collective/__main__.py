@@ -52,8 +52,9 @@ async def do_login(bc):
         print(Fore.RED + "No user logged in with given cookies" + Fore.RESET)
         exit(1)
 
-    print(Fore.GREEN + 'Logged in as ' + Fore.BLUE + bc.user['name'] + Fore.GREEN + ' (' + Fore.CYAN + bc.user[
-        'username'] + Fore.GREEN + ')' + Fore.RESET)
+    print("{cg}Logged in as {cb}{bc.user[name]}{cg} ({cc}{bc.user[username]}{cg}){r}".format(
+        cy=Fore.YELLOW, cc=Fore.CYAN, cg=Fore.GREEN, cb=Fore.BLUE, r=Fore.RESET, bc=bc
+    ))
 
 
 def on_executor(func):
@@ -79,8 +80,8 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
     file_format = file_format.lower()
 
     if file_format not in Bandcamp.FORMATS:
-        print(Fore.RED + "Please use one of the following formats: " + Fore.CYAN + (Fore.RED + ', ' + Fore.CYAN).join(
-            Bandcamp.FORMATS) + Fore.RESET)
+        print(Fore.RED + "Please use one of the following formats: " + Fore.CYAN
+              + (Fore.RED + ', ' + Fore.CYAN).join(Bandcamp.FORMATS) + Fore.RESET)
         exit(1)
 
     await do_login(bc)
@@ -113,32 +114,28 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
         step = 0
         # But it looks sexy in the console!
         while len(queue) > 0 or working > 0:
-            message = ((ansi.clear_line() + ansi.Cursor.UP(
-                1)) * last_height) + ansi.clear_line() + '\r' + Fore.YELLOW + "Queued: " + Fore.GREEN + str(
-                len(queue)) + Fore.YELLOW + " Working: " + Fore.GREEN + str(
-                working) + Fore.YELLOW + " Done: " + Fore.GREEN + str(
-                done) + Fore.YELLOW + " Failed: " + Fore.RED + str(failed) + Fore.RESET + "\n\n"
+            message = (ansi.clear_line() + ansi.Cursor.UP(1)) * last_height
+            message += '{clear}\r{cy}Queued: {cg}{nq}{cy} Working: {cg}{nw}' \
+                       '{cy} Done: {cg}{nd}{cy} Failed: {cr}{nf}{r}\n\n'.format(
+                           clear=ansi.clear_line(), cy=Fore.YELLOW,
+                           cg=Fore.GREEN, cr=Fore.RED, r=Fore.RESET,
+                           nq=len(queue), nw=working, nd=done, nf=failed)
 
             for val in bc.download_status.values():
-                if val['status'] not in ['downloading', 'converting', 'requested']:
+                if val['status'] not in ('downloading', 'converting', 'requested'):
                     continue
 
-                message += Fore.YELLOW + '['
-                if val['status'] == 'converting' or val['status'] == 'requested':
+                message += Fore.YELLOW + '[' + Fore.BLUE
+                if val['status'] in ('converting', 'requested'):
                     bar = '.. .. ..'
-                    message += Fore.BLUE + bar[step:step + 4]
+                    message += bar[step:step + 4]
 
-                if val['status'] == 'downloading':
-                    percent = str(round(
-                        (val['downloaded_size'] / val['size']) * 100))
+                elif val['status'] == 'downloading':
+                    message += "{:>4.0%}".format(val['downloaded_size'] / val['size'])
 
-                    percent = (" " * (3 - len(percent))) + percent
-
-                    message += Fore.BLUE + percent + '%'
-
-                message += Fore.YELLOW + '] ' + Fore.CYAN + val[
-                    'item'].name + Fore.YELLOW + ' by ' + Fore.GREEN + val[
-                               'item'].artist + Fore.RESET + "\n"
+                message += "{cy}] {cc}{v[item].name}{cy} by {cg}{v[item].artist}{r}\n".format(
+                    cy=Fore.YELLOW, cc=Fore.CYAN, cg=Fore.GREEN, r=Fore.RESET, v=val
+                )
 
             last_height = message.count("\n")
             print(message, end="")
@@ -189,7 +186,9 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
     if failed > 0:
         print(Fore.YELLOW + '\nThe following items failed:')
         for item in failed_items:
-            print(Fore.CYAN + item.name + Fore.YELLOW + ' by ' + Fore.GREEN + item.artist + Fore.YELLOW + ': ' + Fore.BLUE + item.url + Fore.RESET)
+            print("{cc}{i.name}{cy} by {cg}{i.artist}{cy}: {cb}{i.url}{r}".format(
+                cy=Fore.YELLOW, cc=Fore.CYAN, cg=Fore.GREEN, cb=Fore.BLUE, r=Fore.RESET, i=item,
+            ))
 
     print(Fore.GREEN + 'Done!' + Fore.RESET)
 
