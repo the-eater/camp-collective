@@ -25,8 +25,8 @@ data = docopt(DOC)
 async def _main(data):
     cookie_string = ';'.join(data['--cookie']).strip(' ;')
 
-    def parse_cookie(str):
-        kv = str.split('=', maxsplit=1)
+    def parse_cookie(string):
+        kv = string.split('=', maxsplit=1)
 
         if len(kv) == 1:
             kv.append(None)
@@ -91,7 +91,6 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
     done = 0
     failed = 0
     failed_items = []
-    status = {}
 
     if status_file is not None:
         if not isfile(status_file):
@@ -104,9 +103,11 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
 
         json_status = await read_file_in_memory(status_file)
         status = json.loads(json_status)
+    else:
+        status = {}
 
-    queue = [item for item in coll.items.values(
-    ) if item.id not in status or not status[item.id]]
+    queue = [item for item in coll.items.values()
+             if item.id not in status or not status[item.id]]
 
     async def print_progress():
         nonlocal working, done, failed
