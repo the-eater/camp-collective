@@ -147,10 +147,12 @@ class Bandcamp:
 
         match = re.search(r"filename\*=UTF-8''(.+)",
                           resp.headers.get('content-disposition'))
-        file = self.download_directory + '/' + item.id + '.zip'
 
         if match:
-            file = self.download_directory + '/' + unquote(str(match.group(1)))
+            file = os.path.join(self.download_directory,
+                                unquote(str(match.group(1))))
+        else:
+            file = os.path.join(self.download_directory, item.id + '.zip')
 
         self.download_status[item.id]['status'] = 'downloading'
         self.download_status[item.id]['size'] = int(
