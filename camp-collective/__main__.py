@@ -161,7 +161,11 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
             failed += 1
             failed_items.append(item)
         else:
-            status[item.id] = True
+            item_dict = item.as_dict()
+            del item_dict['download_url']
+            item_dict['file'] = res
+            item_dict['quality'] = file_format
+            status[item.id] = item_dict
 
     async def queue_download():
         nonlocal working
