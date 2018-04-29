@@ -140,7 +140,7 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
 
             last_height = message.count("\n")
             print(message, end="")
-            step = (step + 1) % 4
+            step = (step + 1) % 3
             await asyncio.sleep(0.5)
 
     async def write_status():
