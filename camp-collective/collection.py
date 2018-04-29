@@ -31,3 +31,6 @@ class Item:
     type = None
     artist = None
     url = None
+
+    def as_dict(self):
+        return dict(self.__dict__)
