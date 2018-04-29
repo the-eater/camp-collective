@@ -18,7 +18,7 @@ Options:
     --parallel=<amount> -p     Amount of items that should be downloaded parallel [default: 5]
     --status=<status-file> -s  Status file to save the status in of downloaded releases, so we don't over do it
     --format=<file-format> -f  File format to download (%s) [default: flac]
-""" % ', '.join(Bandcamp.FORMATS)
+""" % ', '.join(Bandcamp.FORMATS.keys())
 data = docopt(DOC)
 
 
@@ -79,9 +79,9 @@ def write_contents_to_file(filename, data):
 async def download_collection(bc, parallel, status_file=None, file_format=None):
     file_format = file_format.lower()
 
-    if file_format not in Bandcamp.FORMATS:
+    if file_format not in Bandcamp.FORMATS.keys():
         print(Fore.RED + "Please use one of the following formats: " + Fore.CYAN
-              + (Fore.RED + ', ' + Fore.CYAN).join(Bandcamp.FORMATS) + Fore.RESET)
+              + (Fore.RED + ', ' + Fore.CYAN).join(Bandcamp.FORMATS.keys()) + Fore.RESET)
         exit(1)
 
     await do_login(bc)

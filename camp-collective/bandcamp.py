@@ -13,16 +13,16 @@ from bs4 import BeautifulSoup
 
 
 class Bandcamp:
-    FORMATS = [
-        'wav',
-        'forbis',
-        'flac',
-        'mp3-v0',
-        'mp3-320',
-        'alac',
-        'aiff-lossless',
-        'aac-hi'
-    ]
+    FORMATS = {
+        'wav': 'wav',
+        'forbis': 'ogg',
+        'flac': 'flac',
+        'mp3-v0': 'mp3',
+        'mp3-320': 'mp3',
+        'alac': 'm4a',
+        'aiff-lossless': 'aiff',
+        'aac-hi': 'm4a'
+    }
 
     session = None
     file_format = None
@@ -96,7 +96,7 @@ class Bandcamp:
     async def download_item(self, item, file_format=None):
         file_format = file_format if file_format is not None else self.file_format
 
-        if file_format not in Bandcamp.FORMATS:
+        if file_format not in Bandcamp.FORMATS.keys():
             raise RuntimeError('File format %s is not supported by bandcamp' % file_format)
 
         self.download_status[item.id] = {
@@ -152,7 +152,11 @@ class Bandcamp:
             file = os.path.join(self.download_directory,
                                 unquote(str(match.group(1))))
         else:
-            file = os.path.join(self.download_directory, item.id + '.zip')
+            if item.type == 'track':
+                file_ext = '.' + self.FORMATS[file_format]
+            else:
+                file_ext = '.zip'
+            file = os.path.join(self.download_directory, item.id + file_ext)
 
         self.download_status[item.id]['status'] = 'downloading'
         self.download_status[item.id]['size'] = int(
