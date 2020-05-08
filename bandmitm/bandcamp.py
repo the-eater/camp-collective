@@ -2,6 +2,9 @@ from requests import Session, Request
 import asyncio
 from hashlib import sha1
 import hmac
+import string
+
+from bandmitm.dissambled import scramble_pow, PoWHandler
 
 
 class Bandcamp:
@@ -9,6 +12,11 @@ class Bandcamp:
     CLIENT_ID = 134
     CLIENT_SECRET = "1myK12VeCL3dWl9o/ncV2VyUUbOJuNPVJK6bZZJxHvk="
     SECRET_DM_HMAC_KEY = b'dtmfa'
+    LOCALES = [
+        "en-GB"
+    ]
+    PLATFORM = 'a'
+    VERSION_CODE = 172734
 
     def __init__(self, client):
         self.client = client
@@ -20,6 +28,7 @@ class Bandcamp:
         ] = 'Dalvik/2.1.0 (Linux; U; Android 8.1.0; ONEPLUS A5010 Build/OPM7.181205.001)'
         self.access_token = None
         self.refresh_token = None
+        self.pow_handler = PoWHandler()
 
     async def get_accounts(self, user: str, password: str):
         data = await self.check_login(user, password)
@@ -39,6 +48,17 @@ class Bandcamp:
         self.access_token = tokens['access_token']
         self.client.headers['Authorization'] = 'Bearer ' + self.access_token
 
+    def get_platform_params(self):
+        return {
+            "platform": self.PLATFORM,
+            "version": self.VERSION_CODE,
+            "locales": self.LOCALES,
+        }
+
+    async def get_collection_info(self):
+        params = self.get_platform_params()
+        return (await self.client.get(self.HOST + '/api/mobile/20/collectioninfo', params=params)).json()
+
     async def get_collection_sync(self, page_size: int = 20, offset: str = None):
         query = {
             "page_size": page_size
@@ -50,7 +70,7 @@ class Bandcamp:
         return (await self.client.get(self.HOST + '/api/collectionsync/1/collection', params=query)).json()
 
     async def check_login(self, username: str, password: str):
-        resp = await self.dm_post(self.HOST + "/api/mobile/22/check_login", json={
+        resp = await self.dm_post(self.HOST + "/api/mobile/24/check_login", json={
             "email": username,
             "password": password
         })
@@ -58,12 +78,23 @@ class Bandcamp:
         return resp.json()
 
     async def bootstrap(self):
-        resp = await self.client.post(self.HOST + '/api/mobile/22/bootstrap_data', headers={
+        bootstrap = await self.client.post(self.HOST + '/api/mobile/24/bootstrap_data', headers={
             'X-Requested-With': 'com.bandcamp.android'
-        }, json={
-            "platform": "a",
-            "version": 122212
-        })
+        }, json=self.get_platform_params())
+
+        self.pow_handler.set_pow(bootstrap.headers['X-Bandcamp-PoW'])
+
+    async def get_collection_items(self, fan_id: str, older_than_token: str = None, count: int = 20):
+        obj = {
+            "fan_id": fan_id,
+            "count": count,
+            "older_than_token": older_than_token
+        }
+
+        #  if older_than_token is not None:
+        #     obj['older_than_token'] = older_than_token
+
+        return (await self.client.post('https://bandcamp.com/api/fancollection/1/collection_items', json=obj)).json()
 
     def handle_dm_feedback(self, dm):
         pla = int(dm[-1], 16)
@@ -92,22 +123,26 @@ class Bandcamp:
             "client_secret": self.CLIENT_SECRET
         })).json()
 
-    async def dm_post(self, *args, _try: int = 0, _bootstrap: bool = False, **kwargs):
+    async def dm_post(self, *args, _try: int = 0, **kwargs):
         req = Request('POST', *args, **kwargs)
+
         prepped = self.client.prepare_request(req)
 
-        if not _bootstrap:
-            prepped.headers['X-Bandcamp-DM'] = self.create_magic_dm(prepped.body)
+        prepped.headers['X-Bandcamp-DM'] = self.create_magic_dm(prepped.body)
+        prepped.headers['X-Bandcamp-PoW'] = str(self.pow_handler.create_pow(prepped.body))
 
         resp = self.client.send(prepped)
         if 'X-Bandcamp-DM' in resp.headers:
             self.handle_dm_feedback(resp.headers['X-Bandcamp-DM'])
 
-        if _try < 1 and resp.status_code == 418:
-            await asyncio.sleep(1)
+        if _try < 2 and resp.status_code == 418:
+            await asyncio.sleep(_try + 1)
             return await self.dm_post(*args, _try=_try + 1, **kwargs)
 
         return resp
+
+    def make_pow(self, input: str):
+        scramble_pow(input, 1, 10, "")
 
 
 class AsyncIOSession(Session):
