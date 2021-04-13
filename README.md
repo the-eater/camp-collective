@@ -29,7 +29,7 @@ pip install -r requirements.txt
 python -m camp-collective -c "$COOKIE_STRING" -p 10 download-collection ~/bandcamp -s "${STATUS_FILE}"
 ```
 
-To authenticate with bandcamp you need to provide a cookie string, you can retrieve this by logging in in a webbrowser, opening the web console and running `document.cookie`, use this as the cookie string
+To authenticate with bandcamp you need to provide a cookie string, you can retrieve this by logging in in a webbrowser, opening the developer tools, and copying the value of the `Cookie: ` header of a recent request to bandcamp.com (not bcbits.com!). previously we were able to use `document.cookie` however, the authentication cookie has now been set to HTTP only.
 
 Bandcamp uses a captcha on the login page, so we can't use the conventional username/password authentication
 
