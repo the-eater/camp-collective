@@ -18,6 +18,7 @@ Options:
     --parallel=<amount> -p     Amount of items that should be downloaded parallel [default: 5]
     --status=<status-file> -s  Status file to save the status in of downloaded releases, so we don't over do it
     --format=<file-format> -f  File format to download (wav, forbis, flac, mp3-v0, mp3-320, alac, aiff-lossless, aac-hi) [default: flac]
+    --after=<date>             Only download tralbums that are purchased after given date, given in YYYY-MM-DD
 ```
 
 # Quickstart
