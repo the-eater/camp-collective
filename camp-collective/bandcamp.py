@@ -58,12 +58,15 @@ class Bandcamp:
             raise RuntimeError("Need to be logged in to load own collection")
 
         collection_seed = await self.get_page_data(self.user['url'])
+        enrichment = await self.get_collection_seed_enrichment()
 
         collection = Collection()
+        collection.set_enrichment(enrichment);
         collection.amount = collection_seed['collection_data']['item_count']
         collection.last_token = collection_seed['collection_data']['last_token']
         collection.extend(collection_seed['item_cache']['collection'].values(),
                           collection_seed['collection_data']['redownload_urls'])
+
 
         has_more = not collection_seed['collection_data']['small_collection']
 
@@ -78,6 +81,15 @@ class Bandcamp:
             has_more = data['more_available']
 
         return collection
+
+    async def get_collection_seed_enrichment(self):
+        resp = await self.session.get("https://bandcamp.com/api/fan/2/collection_summary")
+        if resp.status_code != 200:
+            print("Failed retrieving collection summary for logged in user")
+            return None
+
+        return resp.json()
+
 
     async def get_collection_part(self, fan_id, last_token, count=45):
         resp = await self.session.post('https://bandcamp.com/api/fancollection/1/collection_items', json={

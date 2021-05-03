@@ -1,6 +1,10 @@
 from docopt import docopt
 from os.path import isfile
 
+
+from datetime import datetime
+import locale
+
 import asyncio
 import json
 from colorama import Fore, ansi
@@ -18,11 +22,15 @@ Options:
     --parallel=<amount> -p     Amount of items that should be downloaded parallel [default: 5]
     --status=<status-file> -s  Status file to save the status in of downloaded releases, so we don't over do it
     --format=<file-format> -f  File format to download (%s) [default: flac]
+    --after=<date>             Only download tralbums that are purchased after given date, given in YYYY-MM-DD
 """ % ', '.join(Bandcamp.FORMATS.keys())
 data = docopt(DOC)
 
 
 async def _main(data):
+    # fuck you, unlocales you locale
+    locale.setlocale(locale.LC_ALL, 'C')
+
     cookie_string = ';'.join(data['--cookie']).strip(' ;')
 
     def parse_cookie(string):
@@ -37,12 +45,16 @@ async def _main(data):
                         for cookie_comb in cookie_string.split(';')])
     bc = Bandcamp(cookies=cookie_dict)
 
+    after = None
+    if data['--after']:
+        after = datetime.strptime(data['--after'], '%Y-%m-%d')
+
     if data['download-collection']:
         if data['<target-directory>']:
             bc.download_directory = data['<target-directory>']
 
         await download_collection(bc, parallel=int(data['--parallel']), status_file=data['--status'],
-                                  file_format=data['--format'])
+                                  file_format=data['--format'], after=after)
 
 
 async def do_login(bc):
@@ -76,7 +88,7 @@ def write_contents_to_file(filename, data):
         fp.write(data)
 
 
-async def download_collection(bc, parallel, status_file=None, file_format=None):
+async def download_collection(bc, parallel, status_file=None, file_format=None, after=None):
     file_format = file_format.lower()
 
     if file_format not in Bandcamp.FORMATS.keys():
@@ -107,7 +119,7 @@ async def download_collection(bc, parallel, status_file=None, file_format=None):
         status = {}
 
     queue = [item for item in coll.items.values()
-             if item.id not in status or not status[item.id]]
+             if (item.id not in status or not status[item.id]) and (after is None or item.purchased is None or after < item.purchased)]
 
     async def print_progress():
         nonlocal working, done, failed
