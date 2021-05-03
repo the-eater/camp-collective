@@ -76,7 +76,7 @@ class Bandcamp:
             if data is None:
                 break
 
-            collection.last_token = data['last_token']
+            collection.last_token = data['items'][-1]['token']
             collection.extend(data['items'], data['redownload_urls'])
             has_more = data['more_available']
 
